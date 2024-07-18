@@ -13,7 +13,7 @@ int min(int a,int b)
 {
 	return a<b?a:b;
 }
-
+//判断是否有人胜出函数
 bool check_win(int row, int col, char player) {
     int count = 0;
 
@@ -192,11 +192,10 @@ int main() {
  {
     for(int j=0;j<15;j++)
     board[i][j]='.';
-    //std::strcpy (board[i],"...............");
  }
 
  
- //std::cout<<board[i]<<std::endl;
+ 
     std::string apiKey = "sk-0DITh75zrxk-8tM6mhckTA";  // 替换为您的实际 API 密钥
     Chatbot chatbot(apiKey);
     std::string stop="结束这个话题";//中止切换
@@ -281,13 +280,13 @@ int main() {
             std::cout<<board[i][j];
             std::cout<<std::endl;
             }
-        if(check_win( a-1, b-1,'o')==true) 
+        if(check_win( a-1, b-1,'o')==true) //胜出则直接跳转到重新开始
         {
             std::cout<<"恭喜！你赢了"<<std::endl;
             chatbot.chat("stop");
         }
             else{
-                chatbot.chat(userinput);
+                chatbot.chat(userinput);//还未胜出就继续输入落子位置
             }
          
          }
