@@ -186,7 +186,6 @@ int main() {
                         b=(userInput[i]-'0')*10+(userInput[i+1]-'0');break;
                     }
             }
-            std::cout<<a<<" "<<b<<std::endl;
             board[a-1][b-1]='o';
             std::cout<<"你："<<std::endl;//输出用户输入坐标后的棋盘
              for(int i=0;i<15;i++)
