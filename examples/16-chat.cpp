@@ -1,11 +1,73 @@
 #include <iostream>
 #include "nlohmann/json.hpp"
 #include "openai.hpp"  // 包含 OpenAI 头文件
- std::string userInput;//当前用户输入文字
- std::string userinput;//
- int order;//指令
- int out;//决定是否输出ai回复内容，若是对话模式输出，下五子棋模式不输出，只需要提取ai回复里的坐标改变棋盘即可
- char board[15][15];//五子棋棋盘
+ std::string userInput;
+ std::string userinput;
+ int order;
+ int out;
+ char board[15][15];
+ const int BOARD_SIZE=15;
+
+ int max(int a,int b){return a>b?a:b;} 
+int min(int a,int b)
+{
+	return a<b?a:b;
+}
+
+bool check_win(int row, int col, char player) {
+    int count = 0;
+
+    // 列
+    for (int c = max(0, col - 4); c <= min(BOARD_SIZE - 1, col + 4); ++c) {
+        if (board[row][c] == player) {
+            count++;
+            if (count >= 5) return true;
+        } else {
+            count = 0;
+        }
+    }
+
+    // 行
+    count = 0;
+    for (int r = max(0, row - 4); r <= min(BOARD_SIZE - 1, row + 4); ++r) {
+        if (board[r][col] == player) {
+            count++;
+            if (count >= 5) return true;
+        } else {
+            count = 0;
+        }
+    }
+
+    // 对角线（从左上到右下）
+    count = 0;
+    for (int d = -4; d <= 4; ++d) {
+        int r = row + d, c = col + d;
+        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+            if (board[r][c] == player) {
+                count++;
+                if (count >= 5) return true;
+            } else {
+                count = 0;
+            }
+        }
+    }
+
+    // 对角线（从右上到左下）
+    count = 0;
+    for (int d = -4; d <= 4; ++d) {
+        int r = row - d, c = col + d;
+        if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+            if (board[r][c] == player) {
+                count++;
+                if (count >= 5) return true;
+            } else {
+                count = 0;
+            }
+        }
+    }
+
+    return false;
+}
 
 class Chatbot {
 private:
@@ -28,60 +90,70 @@ public:
     }}
 };
 
-//创建消极情绪检测json对象
 nlohmann::json chatRequest1 = {
-    {"input",userinput}
+    {"input",userInput}
 };
 
         try {
-            auto response = openai::chat().create(chatRequest);//创建于ai对话实例
+            auto response = openai::chat().create(chatRequest);
             if (response.contains("choices") && response["choices"].size() > 0) {
                 std::cout << "AI: "<<std::endl;
                 std::string s=(std::string)response["choices"][0]["message"]["content"];
-                if(out==2)//对话输出ai回复内容
+                if(out==2)
                 {
-                    std::cout<< response["choices"][0]["message"]["content"] << std::endl;;
+                    std::cout<< response["choices"][0]["message"]["content"] << std::endl;
+                    userinput+=s;
                 }
-                else if(out==1)//下棋 提取ai回复的坐标下子更改棋盘状态后输出棋盘
+                else if(out==1)
                 {
                 int a=0,b=0,found=0;
-                for(int i=0;s[i];i++)
+                for(int i=0;s[i];i++ )
                 {
                     if(s[i]>='0'&&s[i]<='9'&&found==0&&!(s[i+1]<='9'&&s[i+1]>='0'))
                     {
-                        a=s[i]-'0';
+                        a=s[i]-'0';i++;
                         found=1;
                     }
-                    else if(s[i]>='0'&&s[i]<='9'&&found==0&&(s[i+1]<='9'&&s[i+1]>='0'))
+                     if(s[i]>='0'&&s[i]<='9'&&found==0&&(s[i+1]<='9'&&s[i+1]>='0'))
                     {
                         a=(s[i]-'0')*10+(s[i+1]-'0');
+                        i+=2;
                         found=1;
                     }
-                    else if(s[i]>='0'&&s[i]<='9'&&found==1&&!(s[i+1]<='9'&&s[i+1]>='0'))
+                     if(s[i]>='0'&&s[i]<='9'&&found==1&&!(s[i+1]<='9'&&s[i+1]>='0'))
                     {
                         b=s[i]-'0';break;
                     }
-                    else if(s[i]>='0'&&s[i]<='9'&&found==1&&(s[i+1]<='9'&&s[i+1]>='0'))
+                     if(s[i]>='0'&&s[i]<='9'&&found==1&&(s[i+1]<='9'&&s[i+1]>='0'))
                     {
                         b=(s[i]-'0')*10+(s[i+1]-'0');break;
                     }
+    
                 }
 
                 board[a-1][b-1]='x';
-         for(int i=0;i<15;i++)//输出ai落子后的棋盘
+         for(int i=0;i<15;i++)//输出棋盘
          {
           for(int j=0;j<15;j++)
           std::cout<<board[i][j];
         std::cout<<std::endl;
         }  
-                }
-                userinput+="你已下的棋子的坐标：";//将ai生成的落子位置整合到下一次输入内容里，作为前提内容，形成记忆
+        if(check_win( a-1, b-1,'x')==true) 
+        {
+            std::cout<<"很遗憾！你输了,请输入stop开启新对局或者尝试其他功能吧"<<std::endl;
+        }
+        else 
+        {
+            userinput+="你已下的棋子的坐标：";
                 userinput+=s;
+        }
+                }
+                
             } else {
                 std::cout << "未能获取到有效回复，请稍后再试。" << std::endl;
             }
 
-        auto  moderation = openai::moderation().create(chatRequest1);//创建情绪检测实例
+        auto  moderation = openai::moderation().create(chatRequest1);
             if (moderation.contains("results") && moderation["results"].size() > 0) {
                 if(moderation["results"][0]["categories"]["harassment"]==true||
                 moderation["results"][0]["categories"]["harassment/threatening"]==true||
@@ -96,7 +168,6 @@ nlohmann::json chatRequest1 = {
                 moderation["results"][0]["categories"]["violence/graphic"]==true
                 )
                 {
-                    //对消极情绪进行ai调解
         auto completion1 = openai::chat().create(R"(
     {
         "model": "gpt-4o",
@@ -117,11 +188,11 @@ nlohmann::json chatRequest1 = {
 };
 
 int main() {
-    //创建五子棋15*15棋盘并初始化
      for(int i=0;i<15;i++)
  {
     for(int j=0;j<15;j++)
     board[i][j]='.';
+    //std::strcpy (board[i],"...............");
  }
 
  
@@ -139,7 +210,7 @@ int main() {
    start:
    std::cout<<"请输入指令：";
     std::cin>>order;
-    if(order==1)//五子棋功能
+    if(order==1)
     {
          for(int i=0;i<15;i++)
  {
@@ -147,8 +218,7 @@ int main() {
  std::cout<<board[i][j];
  std::cout<<std::endl;
  }
- //根据五子棋指令给ai输入一定隐式指示
-        userInput="请和我在15*15的棋盘里下五子棋,每个位置坐标均用数字表示,如左上角坐标为(1,1),我输入的坐标你不能再用，你每次只需回答你所下的位置即可,我先走棋";
+        userInput="请和我在15*15的棋盘里下五子棋,每个位置坐标均用数字表示,如左上角坐标为(1,1),我输入的坐标你不能再用，你每次只需回答你所下的位置,不需要重复我的操作，不需要输出棋盘，只需要输出坐标格式如：（1,1）的答案即可，我先走棋，接下来要是任何一方成功了，就不再变换棋盘 ";
         out=2;
          chatbot.chat(userInput);
          userinput+=userInput;
@@ -156,10 +226,10 @@ int main() {
          while(true)
          {
             std::getline(std::cin, userInput);
-             if(userInput==end) break;//end结束对话
-        else if(userInput==stop||userInput==stop1) {userinput.clear();goto start;}//stop作为此次对话的结束，开始新的对话选择
+             if(userInput==end) break;
+        else if(userInput==stop||userInput==stop1) {userinput.clear();goto start;}
         else if(userInput==rebuild) ;
-        else //将后来输入的坐标不断整合返回给ai，实现记忆功能
+        else 
         {
             userinput+="我已经下子的坐标(";
             userinput+=userInput;
@@ -172,10 +242,9 @@ int main() {
         }
             int a,b;
             if(!(userInput[1]<='9'&&userInput[1]>='0'))
-            a=userInput[0]-'0';
-            else if(userInput[1]<='9'&&userInput[1]>='0')
-            a=(userInput[0]-'0')*10+userInput[1]-'0';
-            for(int i=1;userInput[i];i++)
+            {
+             a=userInput[0]-'0';
+              for(int i=1;userInput[i];i++)
             {
                 if(userInput[i]>='0'&&userInput[i]<='9'&&!(userInput[i+1]<='9'&&userInput[i+1]>='0'))
                     {
@@ -186,27 +255,52 @@ int main() {
                         b=(userInput[i]-'0')*10+(userInput[i+1]-'0');break;
                     }
             }
+            }
+            
+            else if(userInput[1]<='9'&&userInput[1]>='0')
+            {
+             a=(userInput[0]-'0')*10+userInput[1]-'0';
+                 for(int i=2;userInput[i];i++)
+            {
+                if(userInput[i]>='0'&&userInput[i]<='9'&&!(userInput[i+1]<='9'&&userInput[i+1]>='0'))
+                    {
+                        b=userInput[i]-'0';break;
+                    }
+                    else if(userInput[i]>='0'&&userInput[i]<='9'&&(userInput[i+1]<='9'&&userInput[i+1]>='0'))
+                    {
+                        b=(userInput[i]-'0')*10+(userInput[i+1]-'0');break;
+                    }
+            }
+            }
+            std::cout<<a<<" "<<b<<std::endl;
             board[a-1][b-1]='o';
-            std::cout<<"你："<<std::endl;//输出用户输入坐标后的棋盘
+            std::cout<<"你："<<std::endl;
              for(int i=0;i<15;i++)
-         {
-         for(int j=0;j<15;j++)
-         std::cout<<board[i][j];
-         std::cout<<std::endl;
+            {
+             for(int j=0;j<15;j++)
+            std::cout<<board[i][j];
+            std::cout<<std::endl;
+            }
+        if(check_win( a-1, b-1,'o')==true) 
+        {
+            std::cout<<"恭喜！你赢了"<<std::endl;
+            chatbot.chat("stop");
         }
-        
-         chatbot.chat(userinput);//传入对话模型，让ai落子
+            else{
+                chatbot.chat(userinput);
+            }
+         
          }
     }
-    else if(order==2)//对话功能
+    else if(order==2)
     {
         out=2;
 while (true) {
         std::cout << "您: ";
         std::getline(std::cin, userInput);
-         if(userInput==end) break;//end结束对话
-        else if(userInput==stop||userInput==stop1)  {userinput.clear();goto start;}//stop作为此次对话的结束，开始新的对话选择
-        else if(userInput==rebuild);
+         if(userInput==end) break;
+        else if(userInput==stop||userInput==stop1)  {userinput.clear();goto start;}
+        else if(userInput==rebuild) ;
         else 
         {
             userinput+=userInput;
